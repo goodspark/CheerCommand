@@ -15,13 +15,21 @@ class Action:
     A single action, like pressing a key, waiting, etc. To define an actual action, you
     must subclass this and implement the run method. The 'args' will be as loaded from
     the configuration file.
+
+    Subclasses can optionally override 'validate' to do post-config-load validation or
+    any other processing (like converting args to types and fields).
     """
     kind: ClassVar[str]
     _args: List = attr.ib(factory=list)
 
     @classmethod
     def from_config(cls, config: Dict) -> 'Action':
-        return _registry[config['kind']](args=config['args'])
+        a = _registry[config['kind']](args=config['args'])
+        a.validate()
+        return a
+
+    def validate(self):
+        pass
 
     def run(self):
         raise NotImplementedError
@@ -29,39 +37,59 @@ class Action:
 
 class KeyPress(Action):
     kind = 'keypress'
+    key: str = ''
+    duration_s: float = 0
+
+    def validate(self):
+        self.key = str(self._args[0])
+        if len(self._args) == 2:
+            self.duration_s = float(self._args[1])
 
     def run(self):
-        key = self._args[0]
-        if len(self._args) == 2:
-            exec(f'keyboard.press("{key}")')
-            time.sleep(float(self._args[1]))
-            exec(f'keyboard.release("{key}")')
+        if self.duration_s > 0:
+            exec(f'keyboard.press("{self.key}")')
+            time.sleep(self.duration_s)
+            exec(f'keyboard.release("{self.key}")')
         else:
-            exec(f'keyboard.send("{key}")')
+            exec(f'keyboard.send("{self.key}")')
 
 
 class Wait(Action):
     kind = 'wait'
+    duration_s: float = 0.0
+
+    def validate(self):
+        self.duration_s = float(self._args[0])
 
     def run(self):
-        time.sleep(float(self._args[0]))
+        time.sleep(self.duration_s)
 
 
 class Click(Action):
     kind = 'click'
+    button: str = ''
+    duration_s: float = 0.0
+
+    def validate(self):
+        self.button = self._args[0]
+        if len(self._args) == 2:
+            self.duration_s = float(self._args[1])
 
     def run(self):
-        button = self._args[0]
-        if len(self._args) == 2:
-            exec(f'mouse.press("{button}")')
-            time.sleep(float(self._args[1]))
-            exec(f'mouse.release("{button}")')
+        if self.duration_s > 0:
+            exec(f'mouse.press("{self.button}")')
+            time.sleep(self.duration_s)
+            exec(f'mouse.release("{self.button}")')
         else:
-            exec(f'mouse.click("{button}")')
+            exec(f'mouse.click("{self.button}")')
 
 
 class WackyWasd(Action):
     kind = 'wackywasd'
+    duration_s: float = 0.0
+
+    def validate(self):
+        self.duration_s = float(self._args[0])
 
     def run(self):
         wasd = list('wasd')
@@ -89,7 +117,7 @@ class WackyWasd(Action):
             print(f'{a}: {b}')
 
         def reset():
-            time.sleep(float(self._args[0]))
+            time.sleep(self.duration_s)
             keyboard.unhook_all()
         threading.Thread(target=reset).start()
 
