@@ -30,6 +30,8 @@ CheerCommand for Twitch
     0.1.3
         Added !wasd mode to mix up wasd
         Added handling for multiple config files
+    0.2.0
+        Reworked command, action, and configuration
 
 http://twitch.tv/johnlonnie
 
@@ -38,11 +40,7 @@ http://twitch.tv/johnlonnie
 """
 TODO:
     Move global vars into singletons
-    Change command handling from csv to typed json or yaml
-    Refactor commandBuild to accept many instructions
-    Move commandbuild away from exec utilization (currently a limit of kayboard and mouse lib argument handling)
-    Consolidate WASD function into commandBuild class structure
-    Use threading for any timers (current timers depend on receiving chat messages)
+    Move keyboard/mouse commands away from exec utilization (currently a limit of libs' argument handling)
     Optimize IRCv3 tag parses in utility
 """
 
@@ -54,14 +52,7 @@ import auth
 import utility
 import cfg
 import socket
-import time
-import re
-import sys
-import datetime
-import re
-import random
-import keyboard
-import mouse
+import cmds
 
 #--------------------------------
 #GLOBAR VARS
@@ -74,9 +65,6 @@ randomAccess = [] #list of specific chat users who are granted access to special
 boxBoss = "" #username in the channel that receives special permissions
 boxBossCredits = 10 #number of times the boxboss can use their special commands
 commandCounter = 0
-timerCommandClock = 0
-timerCommandState = 0
-timerCommandName = ""
 
 #--------------------------------
 #HELPERS
@@ -97,12 +85,21 @@ def chat(sock, msg):
     sock.send(("PRIVMSG {} :{}\r\n".format(auth.CHAN, msg)).encode("UTF-8"))
 
 
-#define button actions
-def trigger(triggernum):
-    global s
-    inputTrigger = inputInstruction(cfg.cost[triggernum], cfg.discount[triggernum], cfg.description[triggernum], cfg.kind[triggernum], cfg.action[triggernum], cfg.actionDetail[triggernum], cfg.duration[triggernum], cfg.action2[triggernum])
-    inputTrigger.commandBuild()
-    inputTrigger.commandMessage()
+def trigger(bits: int, discount: bool = False):
+    cmd = cmds.run(bits, discount=discount)
+    if cmd is not None:
+        send(s, cmd.message)
+
+
+def trigger_random():
+    cmd = cmds.run_random()
+    send(s, cmd.message)
+
+
+def wacky_wasd():
+    cmd = cmds.run('wackywasd')
+    send(s, cmd.message)
+
 
 def randomPermit(twitchUser): #add user to random command permission list
     global randomAccess
@@ -169,95 +166,6 @@ def subModeToggle():
         print(subMode)
     chat(s, "Sub Goal Madness has been " + subStatusMessage)
 
-def timeCheck(secondDuration): #checks time passed and sends a message
-    global timerCommandClock
-    global timerCommandState
-    print("CHECKING TIME")
-    if time.time() - timerCommandClock > secondDuration and timerCommandState == 1:
-        keyboard.unhook_all()
-        timerCommandClock = 0
-        timerCommandState = 0
-        chat(s, "The " + timerCommandName + " timer has ended.")
-
-def wasdChanger(): #mixes up wasd. Ensures no double-mapping or non-assignment.
-
-    global timerCommandClock
-    global timerCommandState
-    global timerCommandName
-    timerCommandClock = time.time()
-    timerCommandName = "!wasd"
-    timerCommandState = 1
-    wasdBaseArray = ["'w'","'a'","'s'","'d'"]
-    wasdTempArray = []
-    wasdDiffArray = []
-    wasdNewArray = []
-
-    i = 0
-    while not i == 4:
-        print(i)
-        print(wasdBaseArray[i])
-        wasdTempArray = ["'w'","'a'","'s'","'d'"]
-        wasdTempArray.remove(wasdBaseArray[i])
-        wasdDiffArray = [x for x in wasdTempArray if x not in wasdNewArray]
-        if i == 3 and len(wasdDiffArray) > 1:
-            print("avoiding same final key")
-            wasdNewArray.append(wasdNewArray[2])
-            wasdNewArray[2] = wasdBaseArray[3]
-        else:
-            wasdNewArray.append(random.choice(wasdDiffArray))
-        i = i + 1
-
-    print(wasdBaseArray)
-    print(wasdNewArray)
-    exec("keyboard.remap_key('w'," + wasdNewArray[0] + ")")
-    print("W : " + wasdNewArray[0])
-    exec("keyboard.remap_key('a'," + wasdNewArray[1] + ")")
-    print("A : " + wasdNewArray[1])
-    exec("keyboard.remap_key('s'," + wasdNewArray[2] + ")")
-    print("S : " + wasdNewArray[2])
-    exec("keyboard.remap_key('d'," + wasdNewArray[3] + ")")
-    print("D : " + wasdNewArray[3])
-    chat(s, "Wacky WASD!")
-
-def timerMessage():
-    chat(s, "Sorry. There's already a timer running for " + timerCommandName)
-
-
-
-#--------------------------------
-# CLASSES
-#--------------------------------
-
-#create and execute command objects based on cfg data
-class inputInstruction:
-    def __init__(self, cost, discount, description, kind, action, actionDetail, duration, action2):
-        self.cost = cost
-        self.discount = discount
-        self.description = description
-        self.kind = kind
-        self.action = action
-        self.actionDetail = actionDetail
-        self.duration = duration
-        self.action2 = action2
-    
-    def commandBuild(self):
-        if len(self.duration) > 0:
-            print("trying to execute with duration")
-            exec(self.kind + "." + self.action + "(" + self.actionDetail + ")")
-            time.sleep(int(self.duration))
-            exec(self.kind + "." + self.action2 + "(" + self.actionDetail + ")")
-            print("execute with duration complete")
-        else:
-            print("trying to execute basic")
-            exec(self.kind + "." + self.action + "(" + self.actionDetail + ")")
-            print(self.actionDetail)
-            print("execute basic complete")
-    
-    def commandMessage(self):
-        chat(s, self.description)
-
-
-
 #--------------------------------
 # MAIN LOOP
 #--------------------------------
@@ -270,15 +178,6 @@ def bot_loop():
     global boxBossCredits
     global commandCounter
     global s
-    global oldTime
-    global timerCommandState
-    global timerCommandClock
-    global timerCommandName
-
-    randomMax = cfg.row_count - 1
-
-    print("Random Max")
-    print (randomMax)
 
     #connect to the IRC chat
     s.connect((auth.HOST, auth.PORT))
@@ -289,18 +188,8 @@ def bot_loop():
 
     chat(s, "I have arrived")
 
-    print(cfg.cost)
-    print(cfg.discount)
-    print(cfg.description)
-    print(cfg.kind)
-    print(cfg.action)
-    print(cfg.actionDetail)
-    print(cfg.duration)
-    print(cfg.action2)
-
     while True:
         data = s.recv(1024)
-        timeCheck(cfg.idleTime)
         if data.decode("utf-8") == "PING :tmi.twitch.tv\r\n":
             s.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
         else:
@@ -392,80 +281,59 @@ def bot_loop():
                         except:
                             print("SORRY I CAN'T CONVERT THAT TO AN INT")
                         else:
-                            if commandNumber >= 0 and commandNumber <= randomMax:
-                                trigger(commandNumber)
-                            else:
-                                print("COMMAND NUMBER EXCEEDS THE MAX")
+                            cmd = cmds.get_nth(commandNumber)
+                            if cmd is not None:
+                                trigger(cmd.cost)
                     if cleanMessage == "!wasdtest":
-                        wasdChanger()
+                        wacky_wasd()
 
             if scriptActive == 1:           
                 if cleanMessage == "!random":
                     print("RANDOM DETECTED")
-                    randomSeed = random.randint(0,randomMax)
-                    print("RANDOM SEED: " + str(randomSeed))
                     if subMode == 1:
-                        trigger(randomSeed)
+                        trigger_random()
                         print("!RANDOM COMMAND VIA SUBMODE DETECTED")
                     elif username.strip().lower() == boxBoss.lower():
                         print("PERMISSION DETECTED")
                         if boxBossCredits > 0:
-                            trigger(randomSeed)
+                            trigger_random()
                             print("!RANDOM COMMAND VIA BOXBOSS TRIGGERED")
                             boxBossCredits = boxBossCredits - 1
                             chat (s, "You have " + str(boxBossCredits) + " random commands remaining.")
                         else:
                             chat (s, "Sorry, boss. You don't have any random credits left")
                     elif username.strip().lower() in randomAccess:
-                        trigger(randomSeed)
+                        trigger_random()
                         print("!RANDOM COMMAND VIA RANDOMACCESS DETECTED")
 
                 if cleanMessage == "!wasd":
                     if username.strip().lower() == boxBoss.lower():
                         print("WASD PERMISSION DETECTED")
-                        if timerCommandState == 0 and boxBossCredits > 0:
-                            try: 
-                                print("trying WASD")
-                                wasdChanger()
-                                boxBossCredits = boxBossCredits - 1
-                                chat (s, "You have " + str(boxBossCredits) + " random commands remaining.")
-                            except:
-                                timerMessage()
+                        if boxBossCredits > 0:
+                            print("trying WASD")
+                            wacky_wasd()
+                            boxBossCredits = boxBossCredits - 1
+                            chat (s, "You have " + str(boxBossCredits) + " random commands remaining.")
 
                 if "custom-reward-id" in tagStrip:
                     if tagStrip.get('custom-reward-id') == cfg.channelPoint1:
-                        randomNumber = random.randint(0,randomMax)
-                        trigger(randomNumber)
+                        trigger_random()
 
 
                 if "bits" in tagStrip:
-                    cheerAmount = tagStrip.get('bits')      # get bit amount value
+                    cheerAmount = int(tagStrip.get('bits'))      # get bit amount value
                     commandCounter = commandCounter + 1 # update the total number of cheer commands
 
                     if "subscriber" in userBadges or "founder" in userBadges: # check that 'bits' is in the dict as key and the cheerer is a subscriber
-                        print("SUB Bits: " + cheerAmount)
-                        
-                        if cheerAmount in cfg.discount:
-                            trigger(cfg.discount.index(cheerAmount))
+                        print(f"SUB Bits: {cheerAmount}")
 
-                        elif cheerAmount == cfg.subWASD:
-                            try:
-                                wasdChanger()
-                            except:
-                                timerMessage()
+                        trigger(cheerAmount, discount=True)
 
                     else:
-                        print("Bits: " + cheerAmount)
-                        
-                        if cheerAmount in cfg.cost:
-                            trigger(cfg.cost.index(cheerAmount))
+                        print(f"Bits: {cheerAmount}")
 
-                        elif cheerAmount == cfg.WASD:
-                            try:
-                                wasdChanger()
-                            except:
-                                timerMessage()
-                    
+                        trigger(cheerAmount)
+
                     if commandCounter == 10:
                         boxBossCredits = boxBossCredits + 1
                         chat (s, "Ooh that cheer gave our BoxBoss an extra credit. They now have " + str(boxBossCredits))
