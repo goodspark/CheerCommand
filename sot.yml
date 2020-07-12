@@ -1,0 +1,30 @@
+---
+commands:
+  - name: bucket
+    message: You pressed B and probably made Lonnie bucket.
+    cost: 100
+    discount: 50
+    actions:
+      - kind: keypress
+        args: [b]
+  - name: tankard
+    message: Cheers! You pressed 9 and probably made Lonnie pull out his tankard.
+    cost: 200
+    discount: 100
+    actions:
+      - kind: keypress
+        args: ['9']
+  - name: shoot
+    message: You pressed Left Mouse and probably made Lonnie shoot or eat something he wasn't supposed to.
+    cost: 300
+    discount: 150
+    actions:
+      - kind: click
+        args: [left]
+  - name: drop
+    message: You pressed X and probably made Lonnie drop something important or put away a weapon.
+    cost: 500
+    discount: 250
+    actions:
+      - kind: keypress
+        args: [x]

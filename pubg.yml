@@ -1,0 +1,58 @@
+---
+commands:
+  - name: reload
+    message: You pressed R and probably made Lonnie reload.
+    cost: 100
+    discount: 50
+    actions:
+      - kind: keypress
+        args: [r]
+  - name: prone
+    message: You pressed Z and probably made Lonnie go prone.
+    cost: 150
+    discount: 75
+    actions:
+      - kind: keypress
+        args: [z]
+  - name: nade out
+    message: You pressed 5 and switched to a throwable.
+    cost: 200
+    discount: 100
+    actions:
+      - kind: keypress
+        args: [5]
+  - name: shoot
+    message: You pressed Left Mouse and probably made Lonnie shoot or honk.
+    cost: 300
+    discount: 150
+    actions:
+      - kind: click
+        args: [left]
+  - name: empty clip
+    message: You pressed Left Mouse for 3 seconds and probably made Lonnie unload a whole clip.
+    cost: 500
+    discount: 250
+    actions:
+      - kind: click
+        args: [left, 3]
+  - name: e
+    message: You pressed E and probably made Lonnie exit a moving vehicle and die.
+    cost: 500
+    discount: 250
+    actions:
+      - kind: keypress
+        args: [e]
+  - name: dance
+    message: Dance Lonnie... Dance!
+    cost: 138
+    discount: 69
+    actions:
+      - kind: keypress
+        args: [;]
+  - name: wacky wasd
+    message: Wacky WASD!
+    cost: 666
+    discount: 333
+    actions:
+      - kind: wackywasd
+        args: [10]
