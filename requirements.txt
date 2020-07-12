@@ -2,3 +2,6 @@ keyboard
 mouse
 attrs
 pyyaml
+
+# these are for tests, but it's just simpler to keep them in here
+pytest
