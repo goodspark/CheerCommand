@@ -74,6 +74,12 @@ def test_run_name(normal_config):
     assert cmd is not None
 
 
+def test_run_name_no_match(normal_config):
+    cmds.from_config(normal_config)
+    cmd = cmds.run('zxczxczxczxczxc')
+    assert cmd is None
+
+
 @pytest.mark.parametrize('cost,discount,name', [
     (100, False, 'asd'),
     (50, True, 'asd'),
