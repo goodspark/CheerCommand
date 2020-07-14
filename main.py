@@ -45,6 +45,7 @@ TODO:
     Move global vars into singletons
     Move keyboard/mouse commands away from exec utilization (currently a limit of libs' argument handling)
     Optimize IRCv3 tag parses in utility
+    Bug: When wacky WASD is over, the 'done' message isn't sent.
 """
 
 #--------------------------------
