@@ -1,5 +1,5 @@
 import random
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Optional, Callable
 
 import attr
 
@@ -36,7 +36,7 @@ class Command:
             a.run()
 
 
-def from_config(config: Dict) -> Dict[int, Command]:
+def from_config(config: Dict) -> Dict[Union[str, int], Command]:
     """
     :param config: Parsed dictionary from YAML config load.
     :return: A dictionary of parsed commands keyed by the bits cost and discount cost.
@@ -59,10 +59,11 @@ def from_config(config: Dict) -> Dict[int, Command]:
     return _registry
 
 
-def run(x: Union[str, int], discount=False) -> Command:
+def run(x: Union[str, int], discount: bool = False) -> Command:
     """
     Runs a command. If the input is a string, it'll do a lookup based on the name. If
     it's an integer, it'll do a lookup based on bits/discount cost.
+    :param discount: Whether to match bits amounts to discounted values.
     :returns: The called command, if one was found. Else None.
     """
     if discount:
