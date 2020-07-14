@@ -30,7 +30,10 @@ CheerCommand for Twitch
     0.1.3
         Added !wasd mode to mix up wasd
         Added handling for multiple config files
+    0.1.4
+        Fixed !wasd duration
     0.2.0
+
         Reworked command, action, and configuration
 
 http://twitch.tv/johnlonnie
@@ -165,6 +168,7 @@ def subModeToggle():
             cheerToggle()
         print(subMode)
     chat(s, "Sub Goal Madness has been " + subStatusMessage)
+
 
 #--------------------------------
 # MAIN LOOP
