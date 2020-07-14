@@ -49,7 +49,7 @@ commands:
     actions:
       - kind: keypress
         args: [;]
-  - name: wacky wasd
+  - name: wackywasd
     message: Wacky WASD!
     cost: 666
     discount: 333

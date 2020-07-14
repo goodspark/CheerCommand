@@ -71,6 +71,8 @@ def run(x: Union[str, int], discount=False) -> Command:
         cmd = _registry.get(x)
     if cmd is not None:
         cmd.run()
+    elif isinstance(x, str):  # When a command name was passed, we warn if nothing was found
+        print(f'WARNING: command not found! {x}')
     return cmd
 
 
