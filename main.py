@@ -33,7 +33,6 @@ CheerCommand for Twitch
     0.1.4
         Fixed !wasd duration
     0.2.0
-
         Reworked command, action, and configuration
 
 http://twitch.tv/johnlonnie
@@ -76,33 +75,38 @@ commandCounter = 0
 
 #send to the socket
 def send(s, text):
+    """
+    Sends raw text to the given socket.
+
+    This does not send a chat message to the channel. Use :func:`chat` instead.
+    """
     s.send(text.encode('utf-8') + b'\r\n')
 
 #send chat message
 def chat(sock, msg):
+    """
+    Sends a chat message to the IRC channel the given socket is connected to.
 
-    #Send a chat message to the server.
-    #Keyword arguments:
-    #sock -- the socket over which to send the message
-    #msg  -- the message to be sent
-
+    :param sock: The socket over which to send the message
+    :param msg: The message to be sent
+    """
     sock.send(("PRIVMSG {} :{}\r\n".format(auth.CHAN, msg)).encode("UTF-8"))
 
 
 def trigger(bits: int, discount: bool = False):
     cmd = cmds.run(bits, discount=discount)
     if cmd is not None:
-        send(s, cmd.message)
+        chat(s, cmd.message)
 
 
 def trigger_random():
     cmd = cmds.run_random()
-    send(s, cmd.message)
+    chat(s, cmd.message)
 
 
 def wacky_wasd():
     cmd = cmds.run('wackywasd')
-    send(s, cmd.message)
+    chat(s, cmd.message)
 
 
 def randomPermit(twitchUser): #add user to random command permission list
