@@ -102,7 +102,7 @@ class WackyWasd(Action):
             temp = set(wasd)
             temp.remove(wasd[i])
             diff = [x for x in temp if x not in new_wasd]
-            if i == 3 and len(diff) > 1:
+            if i == 3 and len(diff) < 1:
                 print("avoiding same final key")
                 new_wasd.append(new_wasd[2])
                 new_wasd[2] = wasd[3]
