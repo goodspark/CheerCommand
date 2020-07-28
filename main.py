@@ -34,6 +34,10 @@ CheerCommand for Twitch
         Fixed !wasd duration
     0.2.0
         Reworked command, action, and configuration
+    0.2.1
+        Fixed missing 'done' message from wacky WASD
+        Turned the get_nth command func into run_nth to make cmd run code more similar.
+        Removed unused 'send' function
 
 http://twitch.tv/johnlonnie
 
@@ -44,7 +48,6 @@ TODO:
     Move global vars into singletons
     Move keyboard/mouse commands away from exec utilization (currently a limit of libs' argument handling)
     Optimize IRCv3 tag parses in utility
-    Bug: When wacky WASD is over, the 'done' message isn't sent.
 """
 
 #--------------------------------
@@ -73,60 +76,47 @@ commandCounter = 0
 #HELPERS
 #--------------------------------
 
-#send to the socket
-def send(s, text):
-    """
-    Sends raw text to the given socket.
-
-    This does not send a chat message to the channel. Use :func:`chat` instead.
-    """
-    s.send(text.encode('utf-8') + b'\r\n')
 
 #send chat message
-def chat(sock, msg):
+def chat(msg):
     """
     Sends a chat message to the IRC channel the given socket is connected to.
 
-    :param sock: The socket over which to send the message
     :param msg: The message to be sent
     """
-    sock.send(("PRIVMSG {} :{}\r\n".format(auth.CHAN, msg)).encode("UTF-8"))
+    s.send(("PRIVMSG {} :{}\r\n".format(auth.CHAN, msg)).encode("UTF-8"))
 
 
 def trigger(bits: int, discount: bool = False):
-    cmd = cmds.run(bits, discount=discount)
-    if cmd is not None:
-        chat(s, cmd.message)
+    cmds.run(bits, chat, discount=discount)
 
 
 def trigger_random():
-    cmd = cmds.run_random()
-    chat(s, cmd.message)
+    cmds.run_random(chat)
 
 
 def wacky_wasd():
-    cmd = cmds.run('wackywasd')
-    chat(s, cmd.message)
+    cmds.run('wackywasd', chat)
 
 
 def randomPermit(twitchUser): #add user to random command permission list
     global randomAccess
     global s
     if twitchUser in randomAccess:
-        chat(s, twitchUser + " already has access to random keyboard commands.")
+        chat(twitchUser + " already has access to random keyboard commands.")
         return
     else:
         randomAccess.append(twitchUser)
-        chat(s, twitchUser + " has been granted access to random keyboard commands.")
+        chat(twitchUser + " has been granted access to random keyboard commands.")
 
 def randomRevoke(twitchUser): #remove user from random command permission list
     global randomAccess
     global s
     if twitchUser in randomAccess:
         randomAccess.remove(twitchUser)
-        chat(s, twitchUser + " has been removed from random keyboard commands.")
+        chat(twitchUser + " has been removed from random keyboard commands.")
     else:
-        chat(s, twitchUser + " doesn't have access to random keyboard commands.")
+        chat(twitchUser + " doesn't have access to random keyboard commands.")
         return
 
 def bossChange(twitchUser): #changes the box boss
@@ -134,14 +124,14 @@ def bossChange(twitchUser): #changes the box boss
     global boxBossCredits
     global s
     boxBoss = twitchUser
-    chat(s, twitchUser + " Is now the BoxBoss and has access to the !random command when the bits overlay is active")
+    chat(twitchUser + " Is now the BoxBoss and has access to the !random command when the bits overlay is active")
     boxBossCredits = 10
 
 def gameChange(newgame): #changes game for cheerbot
     global currentgame
     global s
     currentgame = newgame
-    chat(s, "I have updated the game to " + currentgame)
+    chat("I have updated the game to " + currentgame)
 
 def cheerToggle():
     global scriptActive
@@ -154,7 +144,7 @@ def cheerToggle():
         scriptActive = 0
         scriptStatusMessage = "stopped!"
         print(scriptActive)
-    chat(s, "CheerCommand has been " + scriptStatusMessage)
+    chat("CheerCommand has been " + scriptStatusMessage)
 
 def subModeToggle():
     global subMode
@@ -172,7 +162,7 @@ def subModeToggle():
         if scriptActive == 1:
             cheerToggle()
         print(subMode)
-    chat(s, "Sub Goal Madness has been " + subStatusMessage)
+    chat("Sub Goal Madness has been " + subStatusMessage)
 
 
 #--------------------------------
@@ -195,7 +185,7 @@ def bot_loop():
     s.send("JOIN {}\r\n".format(auth.CHAN).encode("utf-8"))
     s.send("CAP REQ :twitch.tv/tags".encode("utf-8") + b'\r\n')
 
-    chat(s, "I have arrived")
+    chat("I have arrived")
 
     while True:
         data = s.recv(1024)
@@ -260,9 +250,9 @@ def bot_loop():
 
                     if cleanMessage == "!cheercheck":
                         if scriptActive == 0:
-                            chat(s, "Cheer Command is currently OFF")
+                            chat("Cheer Command is currently OFF")
                         else:
-                            chat(s, "Cheer Command is currently ON")
+                            chat("Cheer Command is currently ON")
 
                     if splitMessage[0] == "!addrandom" and len(splitMessage) == 2:
                         print("ADDRANDOM DETECTED")
@@ -275,9 +265,9 @@ def bot_loop():
                     if cleanMessage == "!randomlist":
                         if len(randomAccess) > 0:
                             currentAccessList = ', '.join(randomAccess)
-                            chat(s, currentAccessList)
+                            chat(currentAccessList)
                         else:
-                            chat(s, "The random access list is empty.")
+                            chat("The random access list is empty.")
 
                     if splitMessage[0] == "!bossupdate" and len(splitMessage) == 2:
                         print("BOSSCHANGE")
@@ -290,9 +280,7 @@ def bot_loop():
                         except:
                             print("SORRY I CAN'T CONVERT THAT TO AN INT")
                         else:
-                            cmd = cmds.get_nth(commandNumber)
-                            if cmd is not None:
-                                trigger(cmd.cost)
+                            cmds.run_nth(commandNumber, chat)
                     if cleanMessage == "!wasdtest":
                         wacky_wasd()
 
@@ -308,9 +296,9 @@ def bot_loop():
                             trigger_random()
                             print("!RANDOM COMMAND VIA BOXBOSS TRIGGERED")
                             boxBossCredits = boxBossCredits - 1
-                            chat (s, "You have " + str(boxBossCredits) + " random commands remaining.")
+                            chat("You have " + str(boxBossCredits) + " random commands remaining.")
                         else:
-                            chat (s, "Sorry, boss. You don't have any random credits left")
+                            chat("Sorry, boss. You don't have any random credits left")
                     elif username.strip().lower() in randomAccess:
                         trigger_random()
                         print("!RANDOM COMMAND VIA RANDOMACCESS DETECTED")
@@ -322,7 +310,7 @@ def bot_loop():
                             print("trying WASD")
                             wacky_wasd()
                             boxBossCredits = boxBossCredits - 1
-                            chat (s, "You have " + str(boxBossCredits) + " random commands remaining.")
+                            chat("You have " + str(boxBossCredits) + " random commands remaining.")
 
                 if "custom-reward-id" in tagStrip:
                     if tagStrip.get('custom-reward-id') == cfg.channelPoint1:
@@ -345,12 +333,12 @@ def bot_loop():
 
                     if commandCounter == 10:
                         boxBossCredits = boxBossCredits + 1
-                        chat (s, "Ooh that cheer gave our BoxBoss an extra credit. They now have " + str(boxBossCredits))
+                        chat("Ooh that cheer gave our BoxBoss an extra credit. They now have " + str(boxBossCredits))
                         commandCounter = 0
 
                 if cleanMessage == "!top10":
                     cheerToggle()
-                    chat(s, "We've turned off cheer command because we're in a top 10 situation.")
+                    chat("We've turned off cheer command because we're in a top 10 situation.")
 
 
     sleep(1)

@@ -1,3 +1,6 @@
+from typing import List
+
+import attr
 import pytest
 import yaml
 
@@ -26,6 +29,19 @@ def normal_config():
           - kind: wait
             args: [0.02]
     """)
+
+
+@pytest.fixture
+def chat():
+    """ A mock for the chat function so it can be tested. Saves sent messages. """
+    @attr.s(auto_attribs=True, frozen=True, slots=True)
+    class Chatter:
+        msgs: List[str] = attr.ib(factory=list)
+
+        def __call__(self, *args, **kwargs):
+            self.msgs.append(args[0])
+
+    return Chatter()
 
 
 def test_from_config(normal_config):
@@ -68,16 +84,18 @@ def test_checks_collisions(normal_config):
         cmds.from_config(normal_config)
 
 
-def test_run_name(normal_config):
+def test_run_name(normal_config, chat):
     cmds.from_config(normal_config)
-    cmd = cmds.run('asd')
+    cmd = cmds.run('asd', chat)
     assert cmd is not None
+    assert chat.msgs == ['asdasdasd']
 
 
-def test_run_name_no_match(normal_config):
+def test_run_name_no_match(normal_config, chat):
     cmds.from_config(normal_config)
-    cmd = cmds.run('zxczxczxczxczxc')
+    cmd = cmds.run('zxczxczxczxczxc', chat)
     assert cmd is None
+    assert chat.msgs == []
 
 
 @pytest.mark.parametrize('cost,discount,name', [
@@ -89,13 +107,15 @@ def test_run_name_no_match(normal_config):
     (123123123, False, None),
     (123123123, True, None),
 ])
-def test_run_index(normal_config, cost, discount, name):
+def test_run_index(normal_config, cost, discount, name, chat):
     cmds.from_config(normal_config)
-    cmd = cmds.run(cost, discount=discount)
+    cmd = cmds.run(cost, chat, discount=discount)
     if name is None:
         assert cmd is None
+        assert chat.msgs == []
     else:
         assert cmd.name == name
+        assert chat.msgs == [cmd.message]
 
 
 @pytest.mark.parametrize('i,name', [
@@ -104,14 +124,17 @@ def test_run_index(normal_config, cost, discount, name):
     (1, 'zxc'),
     (40, None),
 ])
-def test_get_nth(i, name):
-    cmd = cmds.get_nth(i)
+def test_run_nth(i, name, chat):
+    cmd = cmds.run_nth(i, chat)
     if name is None:
         assert cmd is None
+        assert chat.msgs == []
     else:
         assert cmd.name == name
+        assert chat.msgs == [cmd.message]
 
 
-def test_run_random():
-    cmd = cmds.run_random()
+def test_run_random(chat):
+    cmd = cmds.run_random(chat)
     assert cmd.name in {'asd', 'zxc'}
+    assert len(chat.msgs) == 1

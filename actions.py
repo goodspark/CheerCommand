@@ -6,6 +6,8 @@ from typing import List, ClassVar, Dict, Type
 import attr
 import keyboard
 
+from special_types import Chatter
+
 _registry: Dict[str, Type['Action']] = {}
 
 
@@ -29,9 +31,15 @@ class Action:
         return a
 
     def validate(self):
+        """ Optional method to run during setup to validate/process args. """
         pass
 
-    def run(self):
+    def run(self, chat: Chatter):
+        """
+        Runs the action.
+        :param chat: A function reference to send a chat message. Generally not needed,
+            but useful for timed things that run in threads (eg. wacky WASD).
+        """
         raise NotImplementedError
 
 
@@ -45,7 +53,7 @@ class KeyPress(Action):
         if len(self._args) == 2:
             self.duration_s = float(self._args[1])
 
-    def run(self):
+    def run(self, chat):
         if self.duration_s > 0:
             exec(f'keyboard.press("{self.key}")')
             time.sleep(self.duration_s)
@@ -61,7 +69,7 @@ class Wait(Action):
     def validate(self):
         self.duration_s = float(self._args[0])
 
-    def run(self):
+    def run(self, chat):
         time.sleep(self.duration_s)
 
 
@@ -75,7 +83,7 @@ class Click(Action):
         if len(self._args) == 2:
             self.duration_s = float(self._args[1])
 
-    def run(self):
+    def run(self, chat):
         if self.duration_s > 0:
             exec(f'mouse.press("{self.button}")')
             time.sleep(self.duration_s)
@@ -91,7 +99,7 @@ class WackyWasd(Action):
     def validate(self):
         self.duration_s = float(self._args[0])
 
-    def run(self):
+    def run(self, chat):
         wasd = list('wasd')
         new_wasd = []
 
@@ -119,6 +127,7 @@ class WackyWasd(Action):
         def reset():
             time.sleep(self.duration_s)
             keyboard.unhook_all()
+            chat('The wacky WASD timer has ended.')
         threading.Thread(target=reset).start()
 
 
